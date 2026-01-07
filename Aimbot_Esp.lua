@@ -1,13 +1,6 @@
-
----
-
-### 2. `Aimbot_ESP.lua` File
-
-This is the actual script. Create a file named `Aimbot_ESP.lua` in the same directory and paste the code below into it. This is the same script from the previous answer, formatted for a single file.
-
-```lua
 -- =============================================
--- ==           BASIC AIMBOT & ESP           ==
+-- ==      ADVANCED AIMBOT & ESP (FPS)       ==
+-- ==         Optimized for FPS Games        ==
 -- ==      Educational Purposes Only        ==
 -- =============================================
 
@@ -17,37 +10,40 @@ local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 local GuiService = game:GetService("GuiService")
+local StarterGui = game:GetService("StarterGui")
 
 -- Player
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 
--- == CUSTOMIZABLE SETTINGS ==
-local AimbotEnabled = false
-local ESPEnabled = false
-local TeamCheck = true -- Set to false to target everyone
-local AimPart = "Head" -- "Head" or "HumanoidRootPart"
-local AimbotKey = Enum.KeyCode.Q -- Key to hold for aimbot
--- ============================
+-- == SETTINGS ==
+local AimbotSettings = {
+    Enabled = false,
+    Keybind = Enum.KeyCode.Q,
+    Smoothness = 0.08, -- Lower = Snappier, Higher = Smoother
+    AimPart = {"Head", "HumanoidRootPart"}, -- Priority order
+    FOV = 70, -- Field of View in degrees
+    TeamCheck = true
+}
 
--- ESP Table to store drawing objects
-local ESP = {}
+local ESPSettings = {
+    Enabled = false,
+    TeamCheck = true,
+    ShowNames = true,
+    ShowDistance = true,
+    ShowBox = true
+}
+-- ==============
 
--- GUI Elements
+-- GUI & Drawing Objects
 local ScreenGui = Instance.new("ScreenGui")
 local MainFrame = Instance.new("Frame")
-local TitleBar = Instance.new("Frame")
-local TitleLabel = Instance.new("TextLabel")
-local AimbotToggle = Instance.new("TextButton")
-local ESPToggle = Instance.new("TextButton")
-local TeamCheckToggle = Instance.new("TextButton")
+local FovCircle = Drawing.new("Circle")
+local ESP = {}
 
 -- Function to create the GUI
 local function createGUI()
-    -- Protect GUI from being reset
-    if syn then
-        syn.protect_gui(ScreenGui)
-    end
+    if syn then syn.protect_gui(ScreenGui) end
     ScreenGui.Parent = game:GetService("CoreGui")
     ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
@@ -57,26 +53,21 @@ local function createGUI()
     MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
     MainFrame.BorderSizePixel = 0
     MainFrame.Position = UDim2.new(0, 100, 0, 100)
-    MainFrame.Size = UDim2.new(0, 200, 0, 150)
+    MainFrame.Size = UDim2.new(0, 200, 0, 180)
+    MainFrame.Draggable = true
 
-    -- Title Bar
-    TitleBar.Parent = MainFrame
-    TitleBar.Active = true
-    TitleBar.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-    TitleBar.BorderSizePixel = 0
-    TitleBar.Size = UDim2.new(1, 0, 0, 30)
-    
     -- Title Label
-    TitleLabel.Parent = TitleBar
-    TitleLabel.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-    TitleLabel.BackgroundTransparency = 1.000
-    TitleLabel.Size = UDim2.new(1, 0, 1, 0)
+    local TitleLabel = Instance.new("TextLabel")
+    TitleLabel.Parent = MainFrame
+    TitleLabel.Size = UDim2.new(1, 0, 0, 30)
     TitleLabel.Font = Enum.Font.GothamBold
-    TitleLabel.Text = "Cheat Hub"
+    TitleLabel.Text = "Fate Trigger Hub"
     TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-    TitleLabel.TextSize = 14.000
+    TitleLabel.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+    TitleLabel.BorderSizePixel = 0
 
-    -- Aimbot Toggle Button
+    -- Aimbot Toggle
+    local AimbotToggle = Instance.new("TextButton")
     AimbotToggle.Parent = MainFrame
     AimbotToggle.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
     AimbotToggle.BorderSizePixel = 0
@@ -87,7 +78,8 @@ local function createGUI()
     AimbotToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
     AimbotToggle.TextSize = 14.000
 
-    -- ESP Toggle Button
+    -- ESP Toggle
+    local ESPToggle = Instance.new("TextButton")
     ESPToggle.Parent = MainFrame
     ESPToggle.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
     ESPToggle.BorderSizePixel = 0
@@ -98,9 +90,10 @@ local function createGUI()
     ESPToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
     ESPToggle.TextSize = 14.000
     
-    -- Team Check Toggle Button
+    -- Team Check Toggle
+    local TeamCheckToggle = Instance.new("TextButton")
     TeamCheckToggle.Parent = MainFrame
-    TeamCheckToggle.BackgroundColor3 = Color3.fromRGB(50, 255, 50) -- Starts ON
+    TeamCheckToggle.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
     TeamCheckToggle.BorderSizePixel = 0
     TeamCheckToggle.Position = UDim2.new(0, 10, 0, 120)
     TeamCheckToggle.Size = UDim2.new(0, 180, 0, 30)
@@ -108,74 +101,77 @@ local function createGUI()
     TeamCheckToggle.Text = "Team Check: ON"
     TeamCheckToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
     TeamCheckToggle.TextSize = 14.000
+    
+    local NotificationLabel = Instance.new("TextLabel")
+    NotificationLabel.Parent = MainFrame
+    NotificationLabel.Size = UDim2.new(1, 0, 0, 30)
+    NotificationLabel.Position = UDim2.new(0,0,1,-30)
+    NotificationLabel.Font = Enum.Font.Gotham
+    NotificationLabel.Text = "Hub Loaded"
+    NotificationLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+    NotificationLabel.BackgroundTransparency = 1
+    NotificationLabel.TextSize = 12
 
     -- Button Functions
     AimbotToggle.MouseButton1Click:Connect(function()
-        AimbotEnabled = not AimbotEnabled
-        AimbotToggle.Text = "Aimbot: " .. (AimbotEnabled and "ON" or "OFF")
-        AimbotToggle.BackgroundColor3 = AimbotEnabled and Color3.fromRGB(50, 255, 50) or Color3.fromRGB(255, 50, 50)
+        AimbotSettings.Enabled = not AimbotSettings.Enabled
+        AimbotToggle.Text = "Aimbot: " .. (AimbotSettings.Enabled and "ON" or "OFF")
+        AimbotToggle.BackgroundColor3 = AimbotSettings.Enabled and Color3.fromRGB(50, 255, 50) or Color3.fromRGB(255, 50, 50)
+        FovCircle.Visible = AimbotSettings.Enabled
+        NotificationLabel.Text = "Aimbot " .. (AimbotSettings.Enabled and "Enabled" or "Disabled")
     end)
 
     ESPToggle.MouseButton1Click:Connect(function()
-        ESPEnabled = not ESPEnabled
-        ESPToggle.Text = "ESP: " .. (ESPEnabled and "ON" or "OFF")
-        ESPToggle.BackgroundColor3 = ESPEnabled and Color3.fromRGB(50, 255, 50) or Color3.fromRGB(255, 50, 50)
-        -- Toggle visibility of all ESP objects
-        for _, v in pairs(ESP) do
-            if v.Box then v.Box.Visible = ESPEnabled end
-            if v.NameText then v.NameText.Visible = ESPEnabled end
-        end
+        ESPSettings.Enabled = not ESPSettings.Enabled
+        ESPToggle.Text = "ESP: " .. (ESPSettings.Enabled and "ON" or "OFF")
+        ESPToggle.BackgroundColor3 = ESPSettings.Enabled and Color3.fromRGB(50, 255, 50) or Color3.fromRGB(255, 50, 50)
+        NotificationLabel.Text = "ESP " .. (ESPSettings.Enabled and "Enabled" or "Disabled")
     end)
     
     TeamCheckToggle.MouseButton1Click:Connect(function()
-        TeamCheck = not TeamCheck
-        TeamCheckToggle.Text = "Team Check: " .. (TeamCheck and "ON" or "OFF")
-        TeamCheckToggle.BackgroundColor3 = TeamCheck and Color3.fromRGB(50, 255, 50) or Color3.fromRGB(255, 50, 50)
-    end)
-
-    -- Dragging GUI
-    local dragging = false
-    local dragStart = nil
-    local startPos = nil
-
-    TitleBar.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = true
-            dragStart = input.Position
-            startPos = MainFrame.Position
-        end
-    end)
-
-    UserInputService.InputChanged:Connect(function(input)
-        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-            local delta = input.Position - dragStart
-            MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-        end
-    end)
-
-    UserInputService.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = false
-        end
+        AimbotSettings.TeamCheck = not AimbotSettings.TeamCheck
+        ESPSettings.TeamCheck = not ESPSettings.TeamCheck
+        TeamCheckToggle.Text = "Team Check: " .. (AimbotSettings.TeamCheck and "ON" or "OFF")
+        TeamCheckToggle.BackgroundColor3 = AimbotSettings.TeamCheck and Color3.fromRGB(50, 255, 50) or Color3.fromRGB(255, 50, 50)
+        NotificationLabel.Text = "Team Check " .. (AimbotSettings.TeamCheck and "Enabled" or "Disabled")
     end)
 end
 
--- Function to get the closest player to the mouse/cursor
+-- Function to check if a part is visible
+local function isVisible(part)
+    local origin = Camera.CFrame.Position
+    local direction = (part.Position - origin).unit
+    local ray = Ray.new(origin, direction * 1000)
+    
+    local hit, position = Workspace:FindPartOnRayWithIgnoreList(ray, {LocalPlayer.Character, Camera})
+    if not hit then return false end
+    
+    local distance = (position - part.Position).magnitude
+    return distance < 5 -- If the ray hit is very close to the target part, it's visible
+end
+
+-- Function to get the closest player in FOV
 local function getClosestPlayer()
     local closestPlayer = nil
     local shortestDistance = math.huge
+    local mousePos = UserInputService:GetMouseLocation()
 
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character and player.Character:FindFirstChildOfClass("Humanoid") and player.Character:FindFirstChildOfClass("Humanoid").Health > 0 then
-            if not TeamCheck or player.Team ~= LocalPlayer.Team then
-                local character = player.Character
-                local targetPart = character:FindFirstChild(AimPart)
+            if not AimbotSettings.TeamCheck or player.Team ~= LocalPlayer.Team then
+                local targetPart = nil
+                for _, partName in ipairs(AimbotSettings.AimPart) do
+                    targetPart = player.Character:FindFirstChild(partName)
+                    if targetPart then break end
+                end
+
                 if targetPart then
                     local screenPos, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
                     if onScreen then
-                        local mousePos = UserInputService:GetMouseLocation()
                         local distance = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
-                        if distance < shortestDistance then
+                        local fovRadius = (Camera.ViewportSize.X / 2) * math.tan(math.rad(AimbotSettings.FOV / 2))
+                        
+                        if distance < fovRadius and distance < shortestDistance and isVisible(targetPart) then
                             shortestDistance = distance
                             closestPlayer = player
                         end
@@ -189,14 +185,18 @@ end
 
 -- Aimbot Loop
 RunService.Heartbeat:Connect(function()
-    if AimbotEnabled and UserInputService:IsKeyDown(AimbotKey) then
+    if AimbotSettings.Enabled and UserInputService:IsKeyDown(AimbotSettings.Keybind) and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
         local target = getClosestPlayer()
         if target and target.Character then
-            local targetPart = target.Character:FindFirstChild(AimPart)
+            local targetPart = nil
+            for _, partName in ipairs(AimbotSettings.AimPart) do
+                targetPart = target.Character:FindFirstChild(partName)
+                if targetPart then break end
+            end
+            
             if targetPart then
-                -- Smooth aiming
                 local targetCFrame = CFrame.new(Camera.CFrame.Position, targetPart.Position)
-                Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, 0.1) -- 0.1 is the smoothness factor (lower = smoother)
+                Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, AimbotSettings.Smoothness)
             end
         end
     end
@@ -204,25 +204,27 @@ end)
 
 -- ESP Functions
 local function createESP(player)
-    if ESP[player] then return end -- Already has ESP
-    
+    if ESP[player] then return end
     ESP[player] = {}
     
-    local box = Drawing.new("Square")
-    box.Thickness = 1
-    box.Color = Color3.new(1, 1, 1)
-    box.Transparency = 1
-    box.Visible = false
-    
-    local nameText = Drawing.new("Text")
-    nameText.Size = 14
-    nameText.Center = true
-    nameText.Outline = true
-    nameText.Color = Color3.new(1, 1, 1)
-    nameText.Visible = false
-    
-    ESP[player].Box = box
-    ESP[player].NameText = nameText
+    if ESPSettings.ShowBox then
+        local box = Drawing.new("Square")
+        box.Thickness = 1
+        box.Color = Color3.new(1, 1, 1)
+        box.Transparency = 1
+        box.Visible = false
+        ESP[player].Box = box
+    end
+
+    if ESPSettings.ShowNames or ESPSettings.ShowDistance then
+        local text = Drawing.new("Text")
+        text.Size = 14
+        text.Center = true
+        text.Outline = true
+        text.Color = Color3.new(1, 1, 1)
+        text.Visible = false
+        ESP[player].Text = text
+    end
 end
 
 local function removeESP(player)
@@ -237,29 +239,35 @@ end
 local function updateESP()
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character and player.Character:FindFirstChildOfClass("Humanoid") and player.Character:FindFirstChild("HumanoidRootPart") and player.Character:FindFirstChild("Head") then
-            if not TeamCheck or player.Team ~= LocalPlayer.Team then
+            if not ESPSettings.TeamCheck or player.Team ~= LocalPlayer.Team then
                 local humanoidRootPart = player.Character.HumanoidRootPart
                 local head = player.Character.Head
                 local screenPosRoot, onScreenRoot = Camera:WorldToViewportPoint(humanoidRootPart.Position)
-                local screenPosHead, onScreenHead = Camera:WorldToViewportPoint(head.Position)
+                local screenPosHead = Camera:WorldToViewportPoint(head.Position)
                 
                 if onScreenRoot then
-                    if not ESP[player] then
-                        createESP(player)
-                    end
+                    if not ESP[player] then createESP(player) end
                     
                     local espObjects = ESP[player]
                     if espObjects then
-                        -- Update Box
-                        local boxSize = Vector2.new(2500 / screenPosRoot.Z, (screenPosRoot.Y - screenPosHead.Y))
-                        espObjects.Box.Size = boxSize
-                        espObjects.Box.Position = Vector2.new(screenPosRoot.X - boxSize.X / 2, screenPosRoot.Y - boxSize.Y / 2)
-                        espObjects.Box.Visible = ESPEnabled
+                        if espObjects.Box then
+                            local boxSize = Vector2.new(2500 / screenPosRoot.Z, (screenPosRoot.Y - screenPosHead.Y))
+                            espObjects.Box.Size = boxSize
+                            espObjects.Box.Position = Vector2.new(screenPosRoot.X - boxSize.X / 2, screenPosRoot.Y - boxSize.Y / 2)
+                            espObjects.Box.Visible = ESPSettings.Enabled
+                        end
                         
-                        -- Update Name Text
-                        espObjects.NameText.Position = Vector2.new(screenPosRoot.X, screenPosRoot.Y - boxSize.Y / 2 - 15)
-                        espObjects.NameText.Text = player.Name .. " [" .. math.floor((humanoidRootPart.Position - LocalPlayer.Character.HumanoidRootPart.Position).Magnitude) .. "m]"
-                        espObjects.NameText.Visible = ESPEnabled
+                        if espObjects.Text then
+                            local displayText = ""
+                            if ESPSettings.ShowNames then displayText = player.Name end
+                            if ESPSettings.ShowDistance then
+                                local dist = math.floor((humanoidRootPart.Position - LocalPlayer.Character.HumanoidRootPart.Position).Magnitude)
+                                displayText = displayText .. " [" .. dist .. "m]"
+                            end
+                            espObjects.Text.Text = displayText
+                            espObjects.Text.Position = Vector2.new(screenPosRoot.X, screenPosRoot.Y - (espObjects.Box and espObjects.Box.Size.Y/2 or 20) - 15)
+                            espObjects.Text.Visible = ESPSettings.Enabled
+                        end
                     end
                 else
                     if ESP[player] then
@@ -277,6 +285,16 @@ local function updateESP()
     end
 end
 
+-- FOV Circle Update
+RunService.RenderStepped:Connect(function()
+    FovCircle.Radius = (Camera.ViewportSize.X / 2) * math.tan(math.rad(AimbotSettings.FOV / 2))
+    FovCircle.Position = Camera.ViewportSize / 2
+    FovCircle.Color = Color3.fromRGB(255, 255, 255)
+    FovCircle.Thickness = 1
+    FovCircle.Transparency = 0.5
+    FovCircle.Visible = AimbotSettings.Enabled
+end)
+
 -- ESP Loop
 RunService.RenderStepped:Connect(updateESP)
 
@@ -286,13 +304,10 @@ Players.PlayerAdded:Connect(function(player)
         createESP(player)
     end)
 end)
-
 Players.PlayerRemoving:Connect(removeESP)
 
 -- Initialize
 createGUI()
-
--- Create ESP for players already in the game
 for _, player in ipairs(Players:GetPlayers()) do
     if player ~= LocalPlayer then
         createESP(player)
