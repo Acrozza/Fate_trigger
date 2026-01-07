@@ -18,7 +18,7 @@ local Camera = Workspace.CurrentCamera
 
 -- == SETTINGS ==
 local AimbotSettings = {
-    Enabled = false,
+    Enabled = true,
     Keybind = Enum.KeyCode.Q,
     Smoothness = 0.08, -- Lower = Snappier, Higher = Smoother
     AimPart = {"Head", "HumanoidRootPart"}, -- Priority order
@@ -27,7 +27,7 @@ local AimbotSettings = {
 }
 
 local ESPSettings = {
-    Enabled = false,
+    Enabled = true,
     TeamCheck = true,
     ShowNames = true,
     ShowDistance = true,
@@ -313,3 +313,4 @@ for _, player in ipairs(Players:GetPlayers()) do
         createESP(player)
     end
 end
+
